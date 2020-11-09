@@ -1,46 +1,51 @@
 package main
 
 import (
+	"errors"
 	"fmt"
-	"log"
-
-	"./accounts"
-	"./mydict"
+	"net/http"
 )
 
+type requestResult struct {
+	url    string
+	status string
+}
+
+var errRequestFailed = errors.New("Request failed")
+
 func main() {
-	account := accounts.NewAccount("miso")
-	account.Deposit(100)
-	fmt.Println(account.Balance())
-	err := account.Withdraw(100)
-	if err != nil {
-		log.Fatalln(err)
+	results := make(map[string]string)
+	c := make(chan requestResult)
+	urls := []string{
+		"https://www.airbnb.com/",
+		"https://www.google.com/",
+		"https://www.amazon.com/",
+		"https://www.reddit.com/",
+		"https://www.google.com/",
+		"https://soundcloud.com/",
+		"https://www.facebook.com/",
+		"https://www.instagram.com/",
+		"https://academy.nomadcoders.co/",
 	}
-	fmt.Println(account)
-
-	dictionary := mydict.Dictionary{"first": "First word"}
-
-	word := "hello"
-	def := "World"
-	err2 := dictionary.Add(word, def)
-	if err2 != nil {
-		log.Fatalln(err2)
+	for _, url := range urls {
+		go hitURL(url, c)
 	}
 
-	definition, _ := dictionary.Search(word)
-	fmt.Println(definition)
-
-	err3 := dictionary.Update(word, "second")
-	if err3 != nil {
-		log.Fatalln(err3)
+	for i := 0; i < len(urls); i++ {
+		result := <-c
+		results[result.url] = result.status
 	}
-	definition2, _ := dictionary.Search(word)
-	fmt.Println(definition2)
 
-	err4 := dictionary.Delete(word)
-	if err4 != nil {
-		log.Fatalln(err4)
+	for url, status := range results {
+		fmt.Println(url, status)
 	}
-	definition3, _ := dictionary.Search(word)
-	fmt.Println(definition3)
+}
+
+func hitURL(url string, c chan<- requestResult) {
+	resp, err := http.Get(url)
+	status := "OK"
+	if err != nil || resp.StatusCode >= 400 {
+		status = "FAILED"
+	}
+	c <- requestResult{url: url, status: status}
 }
